@@ -53,7 +53,7 @@ namespace operations_research {
                 distance += routing.GetArcCostForVehicle(priv_index, index, int64{0});
             }
             LOG(INFO) << route.str() << manager.IndexToNode(index).value();
-            LOG(INFO) << "Route distance: " << distance << "miles";
+            LOG(INFO) << "Route distance: " << distance << " miles";
             LOG(INFO) << "";
             LOG(INFO) << "Advanced usage:";
             LOG(INFO) << "Problem solved in " << routing.solver()->wall_time() << "ms";

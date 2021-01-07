@@ -105,3 +105,17 @@ void other() {
     int* pa3 = new int[20];
 
 }
+
+int high_value(initializer_list<int> val) {
+
+    int high = numeric_limits<int>::min();
+
+    if ( val.size() == 0) return high;
+
+    for (auto v : val)
+        if (v > high ) 
+            high = v;
+
+    return high;
+
+}

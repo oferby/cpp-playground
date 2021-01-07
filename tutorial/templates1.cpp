@@ -115,8 +115,8 @@ class Map {
 
 };
 
-template<typename Value>
-using stringMap = Map<string,Value>
+// template<typename Value>
+// using stringMap = Map<string,Value>;
 
 
 int main() {
@@ -143,7 +143,9 @@ int main() {
 
 
     // Using alias - Map for <string,int>
-    stringMap sm<int>;
+    // stringMap sm<int>({"s",12});
+
+
     
 
 }

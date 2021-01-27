@@ -1,5 +1,7 @@
 #include<iostream>
 #include<string>
+#include<vector>
+#include<algorithm>
 
 using namespace std;
 
@@ -105,6 +107,13 @@ void f14(int i, int j =10){
 // pointer to a function
 void (*f15)(int,int);
 
+// use function as parameter
+using FF = void(*)(int,int);
+
+void f17( FF ff, int x, int y) {
+    ff(x,y);
+};
+
 int main() {
 
     int x1[] = {1,2,3,4};
@@ -136,4 +145,24 @@ int main() {
     // pointer to a function
     f15 = &f14;
     f15(8,9);
+
+    // this also works
+    void (*f16)(int,int) = f14;
+    f16(2,3);
+
+    // function as parameter
+    f17(f14, 1, 7);
+
+    // use lambda function as parameter
+
+    vector<int> vec1 = {1,2,3,4};
+    cout << "vec1: ";
+    sort(vec1.begin(), vec1.end(),[](int x, int y){ return x > y; });
+
+    for (auto v : vec1) {
+        cout << v << " ";
+    }
+
+    cout << "\n";
+
 }

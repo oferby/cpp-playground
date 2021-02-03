@@ -4,9 +4,6 @@
 #include <stdlib.h> 
 #include <netinet/in.h> 
 #include <string.h> 
-#include <iostream>
-
-using namespace std;
 
 int PORT = 8989;
 
@@ -31,9 +28,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Socket created!\n");
-
-    
-
+  
     struct sockaddr_in simpleServer;
     auto addresslen = sizeof(simpleServer);
     bzero(&simpleServer,addresslen);
@@ -70,7 +65,7 @@ int main(int argc, char *argv[]) {
 
     int sizeOfData = read(newsocket, &buf, 1024);
 
-    printf("got %d characters.\n", sizeOfData);
+    printf("got %d characters: %s.\n", sizeOfData, buf);
 
     status = send(newsocket, &buf, sizeOfData, 0);
     if ( status == -1 ) {
@@ -78,5 +73,7 @@ int main(int argc, char *argv[]) {
         exit(1);   
     }
 
+    close(newsocket);
+    close(sd);
 
 }

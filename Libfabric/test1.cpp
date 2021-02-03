@@ -40,7 +40,7 @@ int main() {
 
     // **** creating objects needed for communication *****
     
-    // create fabric object
+    // ** create fabric object **
     struct fid_fabric *fabric;
     err = fi_fabric(fi->fabric_attr, &fabric, NULL);
     if (err) {
@@ -48,7 +48,7 @@ int main() {
         exit(1); 
     }
 
-    // create event queue, used to collect async events
+    // create event queue (EQ), used to collect async events
     struct fi_eq_attr eq_attr;
     struct fid_eq *eq;
 
@@ -61,7 +61,9 @@ int main() {
         exit(1); 
     }
 
-    // create domain object, used as a layer of abstraction for physical resources
+    // ** create domain object **
+    // used as a layer of abstraction for physical resources
+
     struct fid_domain *domain;
     err = fi_domain(fabric, fi, &domain, NULL);
     if (err) {
@@ -69,7 +71,7 @@ int main() {
         exit(1); 
     }
 
-    // create endpoint to be used for communication
+    // create endpoint (EP) to be used for communication
     struct fid_ep *ep;
     err = fi_endpoint(domain, fi, &ep, NULL);
     if (err) {
@@ -77,7 +79,7 @@ int main() {
         exit(1); 
     }    
 
-    // create address vector bind to endpoint and event queue
+    // create address vector (AV) bind to endpoint and event queue
     // for connectionless - specify the address of the remote endpoint. 
     // This needs translation by address vector
     struct fi_av_attr av_attr;
@@ -152,13 +154,8 @@ int main() {
     addr = malloc(addrlen);
     err = fi_getname((fid_t)ep, addr,&addrlen);
 
-
     struct fi_av_attr *av_attr;
     struct fid_av *av;
-
-    
-
-
 
     cout << "Done!\n"; 
 

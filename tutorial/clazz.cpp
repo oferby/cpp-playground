@@ -2,6 +2,15 @@
 
 using namespace std;
 
+
+// struct is a class whose members are public by default
+struct MyStruct {
+    int age;
+    char* name; 
+
+};
+
+
 class MyClass {
 
     public:
@@ -20,6 +29,13 @@ class MyClass {
         // const indicate the the object is not to be changed
         ulong get_size() const { return sz;}
 
+        ulong get_size_and_add() const {
+            // num_of_tries is mutable
+            num_of_tries++; 
+ 
+            return sz;
+        }
+
         // get reference to the class
         MyClass& get_ref() { return *this; };
         
@@ -32,6 +48,9 @@ class MyClass {
     private:
         ulong sz;
         double* element;
+
+        // in case the class is const, this still can be modified
+        mutable int num_of_tries = 0;
 
 };
 
@@ -162,6 +181,11 @@ int main() {
 // can be done because of initializer_list in constructor
     MyClass clazz2 = {1,2,3,4};
     cout << "clazz == clazz2? " << ( clazz == clazz2 ) << "\n";
+
+    // new class with memberwise copy
+    MyClass clazz3 = clazz2;
+    cout << "clazz3 == clazz2? " << ( clazz3 == clazz2 ) << "\n";
+
 
     cout << "complex obj\n";
 

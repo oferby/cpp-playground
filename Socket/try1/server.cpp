@@ -52,28 +52,33 @@ int main(int argc, char *argv[]) {
 
     printf("Listening to socket!\n");
 
-    struct sockaddr_in clientAddress = {0};
-    int clientAddressLen;
-        
-    int newsocket = accept(sd,(struct sockaddr *)&clientAddress,(socklen_t *) &clientAddressLen);
-    if ( newsocket == -1 ) {
-        fprintf(stderr, "Could not accept connection from socket!\n");
-        exit(1);    
-    }
+    while (true) {
 
-    printf("connection accepted!\n");
+        struct sockaddr_in clientAddress = {0};
+        int clientAddressLen;
+            
+        int newsocket = accept(sd,(struct sockaddr *)&clientAddress,(socklen_t *) &clientAddressLen);
+        if ( newsocket == -1 ) {
+            fprintf(stderr, "Could not accept connection from socket!\n");
+            exit(1);    
+        }
 
-    int sizeOfData = read(newsocket, &buf, 1024);
+        printf("connection accepted!\n");
 
-    printf("got %d characters: %s.\n", sizeOfData, buf);
+        int sizeOfData = read(newsocket, &buf, 1024);
 
-    status = send(newsocket, &buf, sizeOfData, 0);
-    if ( status == -1 ) {
-        fprintf(stderr, "Could not send data from server!\n");
-        exit(1);   
-    }
+        printf("got %d characters: %s.\n", sizeOfData, buf);
 
-    close(newsocket);
+        status = send(newsocket, &buf, sizeOfData, 0);
+        if ( status == -1 ) {
+            fprintf(stderr, "Could not send data from server!\n");
+            exit(1);   
+        }
+
+        close(newsocket);
+
+    };
+
     close(sd);
 
 }

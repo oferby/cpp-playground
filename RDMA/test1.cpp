@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    printf("queue pair (QP) %i created.\n", qp);
+    printf("queue pair (QP) created.\n");
 
     
 

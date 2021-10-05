@@ -9,7 +9,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+// #include <poll.h>
+#include <sys/epoll.h>
+#include <sys/ioctl.h>
 
+#define MAX_EVENTS 10
 
 static ibv_device* get_ibv_device(char *dev_name) {
 
@@ -39,9 +43,7 @@ static ibv_device* get_ibv_device(char *dev_name) {
 }
 
 
-static void start_server(const char *servername, int port) {
-
-    char buf[1024] = {0};
+static int get_listening_socket(const char *servername, int port) {
 
     int sd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -80,32 +82,125 @@ static void start_server(const char *servername, int port) {
 
     printf("Listening to socket!\n");
 
-    while (true) {
+    return sd;
 
-        struct sockaddr_in clientAddress = {0};
-        int clientAddressLen;
-            
-        int newsocket = accept(sd,(struct sockaddr *)&clientAddress,(socklen_t *) &clientAddressLen);
-        if ( newsocket == -1 ) {
-            fprintf(stderr, "Could not accept connection from socket!\n");
-            exit(1);    
+}
+
+static int use_conn_fd(int conn_sock) {
+
+    puts("handling client socket event.");
+
+    char buf[1024] = {0};
+    
+    int sizeOfData = read(conn_sock, &buf, 1024);
+    if (sizeOfData == 0) {
+        return -1;
+    } 
+
+    printf("got %d characters: %s.\n", sizeOfData, buf);
+
+    char ack[] = "ACK!";
+    auto status = write(conn_sock, &ack, sizeof(ack));
+    if (status == -1) {
+        perror("error wrinting to client socket\n");
+    } else {
+        printf("wrote to client socket %i bytes\n", status);
+    }
+
+    return 0;
+
+}
+ 
+static int setNonblocking(int fd) {
+    int flags;
+
+    /* If they have O_NONBLOCK, use the Posix way to do it */
+    #if defined(O_NONBLOCK)
+        /* Fixme: O_NONBLOCK is defined but broken on SunOS 4.1.x and AIX 3.2.5. */
+        if (-1 == (flags = fcntl(fd, F_GETFL, 0)))
+            flags = 0;
+        return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    #else
+        /* Otherwise, use the old way of doing it */
+        flags = 1;
+        return ioctl(fd, FIONBIO, &flags);
+    #endif
+} 
+
+// use epoll for multi client connections handling
+static void start_server(const char *servername, int port) {
+    
+    int listen_sock, new_sock, nfds, epollfd, status;
+    struct epoll_event ev, events[MAX_EVENTS];
+
+    listen_sock = get_listening_socket(servername, port);
+
+    // create epoll fd
+    epollfd = epoll_create1(0);
+    if(epollfd<0) {
+        puts("error creating epoll fd.");
+        exit(1);
+
+    }
+
+    ev.events = EPOLLIN;
+    ev.data.fd = listen_sock;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1 ) {
+        perror("could not add listen socket to epoll.");
+        exit(EXIT_FAILURE);
+    }
+
+    puts("listen socket added to epoll list.");
+
+    while(1) {
+
+        nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+        if (nfds == -1) {
+            perror("epoll wait error!");
+            exit(EXIT_FAILURE);
         }
 
-        printf("connection accepted!\n");
+        printf("got %i socket events.",nfds);
 
-        int sizeOfData = read(newsocket, &buf, 1024);
+        for (int n = 0; n < nfds; ++n) {
 
-        printf("got %d characters: %s.\n", sizeOfData, buf);
+            if(events[n].data.fd == listen_sock) {
+                puts("got listen socker event.");
+                struct sockaddr_in clientAddress = {0};
+                int clientAddressLen;
+                new_sock = accept(listen_sock, 
+                    (struct sockaddr*) &clientAddress, 
+                    (socklen_t *) &clientAddressLen);
+                if (new_sock == -1) {
+                    perror("error while connecting client socket.");
+                    exit(EXIT_FAILURE);
+                }                
+                setNonblocking(new_sock);
+                ev.events = EPOLLIN | EPOLLET;
+                ev.data.fd = new_sock;
+                if(epoll_ctl(epollfd, EPOLL_CTL_ADD, new_sock, &ev) == -1) {
+                    perror("error adding client socket to epoll list.");
+                    exit(EXIT_FAILURE);
+                }
+                puts("client socket added to epoll list.");
 
-        status = send(newsocket, &buf, sizeOfData, 0);
-        if ( status == -1 ) {
-            fprintf(stderr, "Could not send data from server!\n");
-            exit(1);   
+            } else {
+
+                status = use_conn_fd(events[n].data.fd);
+                if (status == -1) {
+                    puts("client socket closed. removing from epoll list.");
+                    if (epoll_ctl(epollfd, EPOLL_CTL_DEL, events[n].data.fd, NULL) == -1 ) {
+                        perror("error remoing client socket from epoll list.");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+            }
+
         }
 
-        close(newsocket);
 
-    };
+    }
 
 
 
@@ -137,12 +232,14 @@ static void start_client(const char *servername, int port) {
     printf("connected.\n");
     
 
-    // printf("sending message to server...\n");
-    // send(sock, hello, sizeof(hello),0);
+    printf("sending message to server...\n");
+    send(sock, hello, sizeof(hello),0);
 
-    // printf("reading from server...\n");
-    // auto sizeOdData = read(sock,buffer, sizeof(buffer));
-    // printf("got from server: %s!\n", buffer);
+    printf("reading from server...\n");
+    auto sizeOdData = read(sock, buf, sizeof(buf));
+    printf("got from server: %s!\n", buf);
+
+    sleep(10);
 
     close(sock);
 

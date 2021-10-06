@@ -1,4 +1,8 @@
+# install rdma-core
+sudo apt install rdma-core
 
+# install libibverbs 
+sudo apt install libibverbs-dev
 
 # Load RDMA driver
 - sudo modprobe rdma_rxe

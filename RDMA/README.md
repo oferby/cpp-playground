@@ -8,7 +8,7 @@ sudo apt install libibverbs-dev
 - sudo modprobe rdma_rxe
 
 # Add RDMA interface
-- sudo rdma link add eth0_rxe type rxe netdev enp0s3
+- sudo rdma link add rxe0 type rxe netdev enp0s3
 
 # Compile
 - g++ test1.c -o bin/test1  -libverbs

@@ -108,10 +108,12 @@ int main(int argc, char* argv[]) {
     printf("memory region (MR) registered. Local Key: %i\n", mr->lkey);
 
 
+    // *******************************************************************************************
+
     memset(&qp_init_attr, 0, sizeof(qp_init_attr));
     qp_init_attr.send_cq = cq;
     qp_init_attr.recv_cq = cq;
-    qp_init_attr.qp_type = IBV_QPT_UD;
+    qp_init_attr.qp_type = IBV_QPT_RC;
     qp_init_attr.cap.max_send_wr  = 5;
     qp_init_attr.cap.max_recv_wr  = 5;
     qp_init_attr.cap.max_send_sge = 1;
@@ -125,9 +127,8 @@ int main(int argc, char* argv[]) {
     }
 
     puts("queue pair (QP) created.\n");
-    
-    // ********************************** INIT  ********************************
 
+    // *************************************  INIT   *****************************************
 
     struct ibv_qp_attr attr;
     int flags;
@@ -137,36 +138,55 @@ int main(int argc, char* argv[]) {
     attr.qp_state = ibv_qp_state::IBV_QPS_INIT;
     attr.port_num = 1;
     attr.pkey_index = 0;
-    attr.qkey = 0x22222222;
+    attr.qp_access_flags = 0;
 
     rc = ibv_modify_qp(qp, &attr, 
 		  IBV_QP_STATE      |
 		  IBV_QP_PKEY_INDEX |
 		  IBV_QP_PORT       |
-		  IBV_QP_QKEY);
+		  IBV_QP_ACCESS_FLAGS);
     if (rc)
         puts("error changing QP state to INIT");
     else
         puts("QP state changed to INIT");
 
-    
-    // *************************************  RTR  ********************************
+    // *****************************************   RTR   ********************************************
 
     memset(&attr, 0, sizeof(attr));
-    attr.qp_state = ibv_qp_state::IBV_QPS_RTR;
+    
+    attr.qp_state		= ibv_qp_state::IBV_QPS_RTR;
+    attr.path_mtu		= ibv_mtu::IBV_MTU_1024;
+    attr.dest_qp_num	= 0x11; // remote_qpn;
+    attr.rq_psn		= 0; // remote_psn;
+    attr.max_dest_rd_atomic	= 1;
+    attr.min_rnr_timer	= 0x12;
+    attr.ah_attr.is_global	   = 0;
+    attr.ah_attr.dlid	   = 0; // remote_lid;
+    attr.ah_attr.sl		   = 0; // my_sl;
+    attr.ah_attr.src_path_bits = 0;
+    attr.ah_attr.port_num	   = 1; // my_port;
 
-    rc = ibv_modify_qp(qp, &attr, IBV_QP_STATE );
+
+    rc = ibv_modify_qp(qp, &attr, 
+		  IBV_QP_STATE              |
+		  IBV_QP_AV                 |
+		  IBV_QP_PATH_MTU           |
+		  IBV_QP_DEST_QPN           |
+		  IBV_QP_RQ_PSN             |
+		  IBV_QP_MAX_DEST_RD_ATOMIC |
+		  IBV_QP_MIN_RNR_TIMER );
+
     if (rc == 0)
         puts("QP changed to RTR");
     else if (rc == EINVAL)
-        puts("Invalid value provided in attr or in attr_mask");
+        puts("RTR: Invalid value provided in attr or in attr_mask");
     else if (rc == ENOMEM)
-        puts("Not enough resources to complete this operation");
+        puts("RTR: Not enough resources to complete this operation");
     else
-        printf("QP modify status: %i\n",rc);
+        printf("RTR: QP modify status: %i\n",rc);
 
-    // ******************************************** RTS  ****************************
-
+    // *********************************************  RTS   *************************************
+     
     memset(&attr, 0, sizeof(attr));
     attr.qp_state		= IBV_QPS_RTS;
     attr.sq_psn        = 0;

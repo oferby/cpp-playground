@@ -10,12 +10,12 @@ struct ibv_qp* createQueuePair(struct ibv_pd* pd, struct ibv_cq* cq) {
   memset(&queue_pair_init_attr, 0, sizeof(queue_pair_init_attr));
   queue_pair_init_attr.qp_type = IBV_QPT_RC;
   queue_pair_init_attr.sq_sig_all = 1;       // if not set 0, all work requests submitted to SQ will always generate a Work Completion.
-  queue_pair_init_attr.send_cq = cq;         // completion queue can be shared or you can use distinct completion queues.
-  queue_pair_init_attr.recv_cq = cq;         // completion queue can be shared or you can use distinct completion queues.
-  queue_pair_init_attr.cap.max_send_wr = 1;  // increase if you want to keep more send work requests in the SQ.
-  queue_pair_init_attr.cap.max_recv_wr = 1;  // increase if you want to keep more receive work requests in the RQ.
-  queue_pair_init_attr.cap.max_send_sge = 1; // increase if you allow send work requests to have multiple scatter gather entry (SGE).
-  queue_pair_init_attr.cap.max_recv_sge = 1; // increase if you allow receive work requests to have multiple scatter gather entry (SGE).
+  queue_pair_init_attr.send_cq = cq;         
+  queue_pair_init_attr.recv_cq = cq;         
+  queue_pair_init_attr.cap.max_send_wr = 1;  
+  queue_pair_init_attr.cap.max_recv_wr = 1;  
+  queue_pair_init_attr.cap.max_send_sge = 1; 
+  queue_pair_init_attr.cap.max_recv_sge = 1; 
 
   return ibv_create_qp(pd, &queue_pair_init_attr);
 }
@@ -32,22 +32,35 @@ bool changeQueuePairStateToInit(struct ibv_qp* queue_pair) {
 }
 
 bool changeQueuePairStateToRTR(struct ibv_qp* queue_pair, int ib_port, uint32_t destination_qp_number, uint16_t destination_local_id) {
-  struct ibv_qp_attr rtr_attr;
-  memset(&rtr_attr, 0, sizeof(rtr_attr));
-  rtr_attr.qp_state = ibv_qp_state::IBV_QPS_RTR;
-  rtr_attr.path_mtu = ibv_mtu::IBV_MTU_1024;
-  rtr_attr.rq_psn = 0;
-  rtr_attr.max_dest_rd_atomic = 1;
-  rtr_attr.min_rnr_timer = 0x12;
-  rtr_attr.ah_attr.is_global = 0;
-  rtr_attr.ah_attr.sl = 0;
-  rtr_attr.ah_attr.src_path_bits = 0;
-  rtr_attr.ah_attr.port_num = ib_port;
-  
-  rtr_attr.dest_qp_num = destination_qp_number;
-  rtr_attr.ah_attr.dlid = destination_local_id;
+    struct ibv_qp_attr rtr_attr;
+    memset(&rtr_attr, 0, sizeof(rtr_attr));
+    rtr_attr.qp_state = ibv_qp_state::IBV_QPS_RTR;
+    rtr_attr.path_mtu = ibv_mtu::IBV_MTU_1024;
+    rtr_attr.dest_qp_num = destination_qp_number;
+    rtr_attr.rq_psn = 0;
+    rtr_attr.max_dest_rd_atomic = 1;
+    rtr_attr.min_rnr_timer = 0x12;
 
-  return ibv_modify_qp(queue_pair, &rtr_attr, IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER) == 0 ? true : false;
+    rtr_attr.ah_attr.is_global = 0;
+    rtr_attr.ah_attr.sl = 0;
+    rtr_attr.ah_attr.src_path_bits = 0;
+    rtr_attr.ah_attr.port_num = ib_port;
+    rtr_attr.ah_attr.dlid = destination_local_id;
+
+    auto status = ibv_modify_qp(queue_pair, &rtr_attr, 
+                        IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER
+                        );
+
+    if (status == 0)
+        puts("QP changed to RTR");
+    else if (status == EINVAL)
+        puts("Invalid value provided in attr or in attr_mask");
+    else if (status == ENOMEM)
+        puts("Not enough resources to complete this operation");
+    else
+        printf("QP modify status: %i\n",status);
+
+    return  status == 0 ? true : false;
 }
 
 
@@ -95,7 +108,7 @@ int main(int argc, char* argv[]) {
     else
         puts("error changing QP to INIT");
 
-    if (changeQueuePairStateToRTR(qp, 1, 0x11, 0))
+    if (changeQueuePairStateToRTR(qp, 1, 11, 0))
         puts("QP changed to RTR");
     else
         puts("error changing QP to RTR");

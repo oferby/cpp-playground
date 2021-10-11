@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <arpa/inet.h>
 #include <infiniband/verbs.h>
 
 
@@ -26,6 +27,14 @@ int main(int argc, char* argv[]) {
 
     size_t b_size = 1024;
     char *buffer;
+
+    char gid[33];
+    struct rdma_dest {
+        int lid;
+        int qpn;
+        int psn;
+        union ibv_gid gid;
+    } my_dest;
 
     // struct for data exchange
     struct data_info {
@@ -151,6 +160,16 @@ int main(int argc, char* argv[]) {
         puts("QP state changed to INIT");
 
     // *****************************************   RTR   ********************************************
+
+    memset(&my_dest, 0, sizeof my_dest);
+    rc = ibv_query_gid(ctx, 1, 0, &my_dest.gid);
+
+    if (rc == 0) {
+        inet_ntop(AF_INET6, &my_dest.gid, gid, sizeof gid);
+        printf("GID: %s", gid);
+    }
+    else
+        perror("error getting local GID");
 
     memset(&attr, 0, sizeof(attr));
     

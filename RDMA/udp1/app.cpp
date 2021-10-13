@@ -4,7 +4,7 @@
 int main(int argc, char* argv[]) {
 
     ConnectionServer conn_server;
-    RdmaHandler rdmaHandler;
+    RdmaHandler rdmaHandler {};
 
     conn_server.start();
 

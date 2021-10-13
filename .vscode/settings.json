@@ -61,5 +61,6 @@
         "cfenv": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
 }

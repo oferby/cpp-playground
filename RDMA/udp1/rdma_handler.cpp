@@ -243,7 +243,6 @@ public:
         }
 
         local_dest.gid = &local_gid;
-        // memcpy(&local_dest.gid, &local_gid, sizeof local_gid);
 
         static char gid[33];
         inet_ntop(AF_INET6, local_dest.gid, gid, sizeof gid);

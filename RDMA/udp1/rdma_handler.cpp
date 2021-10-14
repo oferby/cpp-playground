@@ -7,9 +7,14 @@
 #include <malloc.h>
 #include <getopt.h>
 #include <time.h>
-#include <infiniband/verbs.h>
+#include <arpa/inet.h>
+#include "rdma_handler.h"
+
 
 #define PORT_NUM 1
+#define QKEY 0x11111111
+#define GID_IDX 0
+#define IB_PORT 1
 
 struct app_context {
 	struct ibv_context	*ctx;
@@ -24,15 +29,10 @@ struct app_context {
 	int			 send_flags;
 	int			 rx_depth;
 	int			 pending;
-	struct ibv_port_attr     portinfo;
+	struct ibv_port_attr     *portinfo;
 };
 
-struct app_dest {
-	int lid;
-	int qpn;
-	int psn;
-	union ibv_gid gid;
-};
+
 
 enum ibv_mtu mtu_to_enum(int mtu)
 {
@@ -46,28 +46,7 @@ enum ibv_mtu mtu_to_enum(int mtu)
 	}
 }
 
-static void wire_gid_to_gid(const char *wgid, union ibv_gid *gid) { 
-	char tmp[9];
-	__be32 v32;
-	int i;
-	uint32_t tmp_gid[4];
 
-	for (tmp[8] = 0, i = 0; i < 4; ++i) {
-		memcpy(tmp, wgid + i * 8, 8);
-		sscanf(tmp, "%x", &v32);
-		tmp_gid[i] = be32toh(v32);
-	}
-	memcpy(gid, tmp_gid, sizeof(*gid));
-}
-
-static void gid_to_wire_gid(const union ibv_gid *gid, char wgid[]) {
-	uint32_t tmp_gid[4];
-	int i;
-
-	memcpy(tmp_gid, gid, sizeof(tmp_gid));
-	for (i = 0; i < 4; ++i)
-		sprintf(&wgid[i * 8], "%08x", htobe32(tmp_gid[i]));
-}
 
 
 static void cleanup(struct app_context *ctx) {
@@ -102,8 +81,8 @@ static void createQueuePair(struct app_context *app_ctx) {
 			.cap     = {
 				.max_send_wr  = 10,
 				.max_recv_wr  = 10,
-				.max_send_sge = 1,
-				.max_recv_sge = 1
+				.max_send_sge = 10,
+				.max_recv_sge = 10
 			},
 			.qp_type = IBV_QPT_UD,
 		};
@@ -141,7 +120,7 @@ static void changeQueuePairState(struct app_context *app_ctx) {
 
 		struct ibv_qp_attr attr = {
 			.qp_state        = IBV_QPS_INIT,
-            .qkey            = 0x11111111,
+            .qkey            = QKEY,
 			.pkey_index      = 0,
 			.port_num        = PORT_NUM
 		};
@@ -165,6 +144,8 @@ static void changeQueuePairState(struct app_context *app_ctx) {
 
         do_qp_change(app_ctx->qp, &attr, IBV_QP_STATE | IBV_QP_SQ_PSN, (char*) "RTS");
 
+        puts("QP ready.");
+
 }
 
 
@@ -173,6 +154,7 @@ static struct app_context* setup_context() {
     struct app_context *app_ctx;
     struct ibv_device   **dev_list;
     struct ibv_device   *ib_dev;
+    int status;
 
     memset(app_ctx, 0, sizeof app_ctx);
 
@@ -198,6 +180,13 @@ static struct app_context* setup_context() {
     }
 
     ibv_free_device_list(dev_list);
+
+    memset(app_ctx->portinfo, 0, sizeof app_ctx->portinfo);
+    status = ibv_query_port(app_ctx->ctx, IB_PORT, app_ctx->portinfo);
+    if (status == -1) {
+        perror("could not get port info");
+        exit(EXIT_FAILURE);
+    }
 
     app_ctx->pd = ibv_alloc_pd(app_ctx->ctx);
 
@@ -231,11 +220,44 @@ static struct app_context* setup_context() {
 class RdmaHandler {
     
     struct app_context *app_ctx;
+    struct app_dest local_dest;
 
 public:
     RdmaHandler() {
+        
         app_ctx = setup_context();
+        
+        int status;
+
+        printf("lid: %i\n", app_ctx->portinfo->lid);
+        local_dest.lid = app_ctx->portinfo->lid;
+        local_dest.qpn = app_ctx->qp->qp_num;
+        local_dest.psn = 1;
+        
+        union ibv_gid local_gid;
+
+        status = ibv_query_gid(app_ctx->ctx, IB_PORT, GID_IDX, &local_gid);
+        if (status == -1) {
+            perror("could not get GID");
+            exit(EXIT_FAILURE);
+        }
+
+        local_dest.gid = &local_gid;
+        // memcpy(&local_dest.gid, &local_gid, sizeof local_gid);
+
+        static char gid[33];
+        inet_ntop(AF_INET6, local_dest.gid, gid, sizeof gid);
+	    printf("  local address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x: GID %s\n",
+	        local_dest.lid, local_dest.qpn, local_dest.psn, gid);
+
     }
+
+    struct app_dest* get_local_dest() {
+
+        return &local_dest;
+
+    }
+    
 
 };
 

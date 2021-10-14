@@ -7,6 +7,7 @@ int main(int argc, char* argv[]) {
     RdmaHandler rdmaHandler {};
 
     conn_server.start();
+    // conn_server.set_hello_msg(rdmaHandler.get_local_dest());
 
     if (argc > 1) {
         conn_server.send_hello(argv[1]);

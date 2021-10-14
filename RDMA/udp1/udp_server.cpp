@@ -9,6 +9,7 @@
 #include <string.h>
 #include <iostream>
 #include <map>
+#include "rdma_handler.h"
 
 using namespace std;
 
@@ -17,11 +18,12 @@ using namespace std;
 
 
 
-
 struct neighbor {
-    sockaddr_in addr;
+    struct sockaddr_in addr;
+    struct app_dest dest;
     time_t lastHello;
 };
+
 
 // static int resolvehelper(const char* hostname, int family, const char* service, sockaddr_storage* pAddr)
 // {
@@ -41,11 +43,44 @@ struct neighbor {
 // }
 
 
+static char* get_hello_msg(struct app_dest *dest) {
+
+    // char msg[sizeof "0000:000000:000000:00000000000000000000000000000000"];
+
+    char *msg = (char*) malloc(sizeof "0000:000000:000000:00000000000000000000000000000000");
+
+    char gid[33];
+    gid_to_wire_gid(dest->gid, gid);
+	sprintf(msg, "%04x:%06x:%06x:%s", dest->lid, dest->qpn,
+							dest->psn, gid);
+
+    return msg;
+
+}
+
+static struct app_dest* get_dest(char *msg) {
+
+    struct app_dest *rem_dest;
+    memset(rem_dest, 0, sizeof rem_dest);
+
+    char gid[33];
+	sscanf(msg, "%x:%x:%x:%s", &rem_dest->lid, &rem_dest->qpn,
+							&rem_dest->psn, gid);
+    free(msg);
+	wire_gid_to_gid(gid, rem_dest->gid);
+
+    return rem_dest;
+
+}
+
+
 class ConnectionServer {
 
 private:
     int nfds, epollfd, status, sd;
     struct epoll_event ev, events[MAX_EVENTS];
+    
+    char *hello_msg;
 
     map<string, neighbor> neighbor_map {};
 
@@ -182,6 +217,13 @@ public:
         } else {
             printf("%i bytes sent.\n", result);
         }
+    }
+
+    void set_hello_msg(struct app_dest *local_dest) {
+        
+        hello_msg = get_hello_msg(local_dest);
+        puts("hello message set");
+
     }
 
 

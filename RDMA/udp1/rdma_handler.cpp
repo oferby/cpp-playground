@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdexcept>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -32,8 +33,6 @@ struct app_context {
 	struct ibv_port_attr     *portinfo;
 };
 
-
-
 enum ibv_mtu mtu_to_enum(int mtu)
 {
 	switch (mtu) {
@@ -45,9 +44,6 @@ enum ibv_mtu mtu_to_enum(int mtu)
 	default:   throw std::invalid_argument("invalid mtu");
 	}
 }
-
-
-
 
 static void cleanup(struct app_context *ctx) {
     if(ctx->qp)
@@ -181,12 +177,13 @@ static struct app_context* setup_context() {
 
     ibv_free_device_list(dev_list);
 
-    memset(app_ctx->portinfo, 0, sizeof app_ctx->portinfo);
-    status = ibv_query_port(app_ctx->ctx, IB_PORT, app_ctx->portinfo);
+    ibv_port_attr port_attr;
+    status = ibv_query_port(app_ctx->ctx, IB_PORT, &port_attr);
     if (status == -1) {
         perror("could not get port info");
         exit(EXIT_FAILURE);
     }
+    app_ctx->portinfo = &port_attr;
 
     app_ctx->pd = ibv_alloc_pd(app_ctx->ctx);
 

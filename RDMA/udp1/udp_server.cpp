@@ -45,8 +45,6 @@ struct neighbor {
 
 static char* get_hello_msg(struct app_dest *dest) {
 
-    // char msg[sizeof "0000:000000:000000:00000000000000000000000000000000"];
-
     char *msg = (char*) malloc(sizeof "0000:000000:000000:00000000000000000000000000000000");
 
     char gid[33];
@@ -188,9 +186,9 @@ public:
 
     };
 
-    void send_hello(char* dest) {
+    void send_hello(char *dest) {
 
-        printf("sending hello message to %s\n",dest);
+        printf("sending hello message to %s\n", dest);
 
         sockaddr_in servaddr;
         bzero(&servaddr,sizeof(servaddr));

@@ -79,36 +79,47 @@ private:
     struct epoll_event ev, events[MAX_EVENTS];
     
     char *hello_msg;
+    ssize_t msg_size;
 
     map<string, neighbor> neighbor_map {};
 
     void add_neighbor(struct sockaddr_in clientaddr) {
 
-        char *ip = inet_ntoa(clientaddr.sin_addr);
+        string ip = inet_ntoa(clientaddr.sin_addr);
 
-        if (neighbor_map.find(ip) == neighbor_map.end()) {
-            puts("adding new addr");
-            neighbor n = {
-                .addr = clientaddr,
-                .lastHello = time(nullptr)
-            };
-            neighbor_map[ip] = n;
+        neighbor n = {
+            .addr = clientaddr,
+            .lastHello = time(nullptr)
+        };
 
-            send_hello(clientaddr);
-        }
+        // neighbor_map[ip] = n;
+        puts("inserted.");
+        // if(neighbor_map.count(ip))
+        //     puts("found in map");
+        // else
+        //     puts("not found in map");
+
+        // if (neighbor_map.count(ip)  == 0 ) {
+        // //     puts("adding new addr");
+        //     neighbor n = {
+        //         .addr = clientaddr,
+        //         .lastHello = time(nullptr)
+        //     };
+        // //     neighbor_map[ip] = n;
+
+        // //     send_hello(clientaddr);
+        // }
             
-        else {
-            printf("address %s exists. updating last hellow time.\n", ip);
-            neighbor_map[ip].lastHello = time(nullptr);
+        // else {
+        //     printf("address %s exists. updating last hellow time.\n", ip);
+        //     neighbor_map[ip].lastHello = time(nullptr);
 
-        }
+        // }
 
     }
 
 
 public:
-
-
 
     void start() {
 
@@ -157,7 +168,7 @@ public:
 
     };
 
-    void server_udp_handle()
+    void server_receive_event()
     {
         char recvbuf[65536] = { 0 }; 
         int len;
@@ -167,7 +178,7 @@ public:
         len = recvfrom(sd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr*)&clientaddr, &client);
         if (len > 0) {
             char *ip = inet_ntoa(clientaddr.sin_addr);
-            printf("got %s from %s\n",recvbuf, ip);
+            printf("got %i bytes from %s\n", len, ip);
             add_neighbor(clientaddr);
         }
     }
@@ -180,7 +191,7 @@ public:
             exit(EXIT_FAILURE);
         } else if (nfds > 0) {
             puts("got socket event.");
-            server_udp_handle();
+            server_receive_event();
         }
         
 
@@ -206,10 +217,8 @@ public:
         printf("sending hello to %s\n", inet_ntoa(dest.sin_addr));
 
         int result;
-        const char* msg = "hello!";
-        size_t msg_length = strlen(msg);
 
-        result = sendto(sd, msg, msg_length, 0, (sockaddr*)&dest, sizeof(dest));
+        result = sendto(sd, this->hello_msg, this->msg_size, 0, (sockaddr*)&dest, sizeof(dest));
         if (result < 0) {
             perror("error sendin hellow message");
         } else {
@@ -219,7 +228,8 @@ public:
 
     void set_hello_msg(struct app_dest *local_dest) {
         
-        hello_msg = get_hello_msg(local_dest);
+        this->hello_msg = get_hello_msg(local_dest);
+        this->msg_size = sizeof this->hello_msg;
         puts("hello message set");
 
     }

@@ -200,8 +200,8 @@ static struct app_context* setup_context() {
 
 class RdmaHandler {
     
-    struct app_context *app_ctx;
-    struct app_dest local_dest;
+    app_context *app_ctx;
+    app_dest local_dest;
 
 public:
     RdmaHandler() {
@@ -210,7 +210,6 @@ public:
         
         int status;
 
-        printf("lid: %i\n", app_ctx->portinfo->lid);
         local_dest.lid = app_ctx->portinfo->lid;
         local_dest.qpn = app_ctx->qp->qp_num;
         local_dest.psn = 1;

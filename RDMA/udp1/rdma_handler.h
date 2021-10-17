@@ -33,5 +33,13 @@ static void gid_to_wire_gid(const union ibv_gid *gid, char wgid[]) {
 		sprintf(&wgid[i * 8], "%08x", htobe32(tmp_gid[i]));
 }
 
+void print_dest(struct app_dest * dest) {
+		static char gid[33];
+        inet_ntop(AF_INET6, dest->gid, gid, sizeof gid);
+	    printf("  local address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x: GID %s\n",
+			dest->lid, dest->qpn, dest->psn, gid);
+}
+
+
 #endif
 

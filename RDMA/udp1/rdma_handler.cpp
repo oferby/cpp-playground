@@ -201,22 +201,6 @@ static struct app_context* setup_context() {
 }
 
 
-// static int app_context_connect(struct app_context *ctx, int port, int my_psn,
-//     int sl, struct app_dest *dest, int sgid_idx ) {
-
-//         struct ibv_ah_attr ah_attr = {
-//             .is_global  = 0,
-//             .dlid       = dest->lid,
-//             .sl         = sl,
-//             .src_path_bits  = 0,
-//             .port_num       = port
-//         };
-
-
-
-
-//     } 
-
 class RdmaHandler {
     
     struct app_context *app_ctx;
@@ -243,11 +227,8 @@ public:
         }
 
         local_dest.gid = &local_gid;
+        print_dest(&local_dest);
 
-        static char gid[33];
-        inet_ntop(AF_INET6, local_dest.gid, gid, sizeof gid);
-	    printf("  local address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x: GID %s\n",
-	        local_dest.lid, local_dest.qpn, local_dest.psn, gid);
 
     }
 

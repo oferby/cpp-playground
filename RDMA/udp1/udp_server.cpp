@@ -19,28 +19,10 @@ using namespace std;
 
 
 struct neighbor {
-    struct sockaddr_in addr;
-    struct app_dest dest;
+    sockaddr_in addr;
+    app_dest dest;
     time_t lastHello;
 };
-
-
-// static int resolvehelper(const char* hostname, int family, const char* service, sockaddr_storage* pAddr)
-// {
-//     int result;
-//     addrinfo* result_list = NULL;
-//     addrinfo hints = {};
-//     hints.ai_family = family;
-//     hints.ai_socktype = SOCK_DGRAM; 
-//     result = getaddrinfo(hostname, service, &hints, &result_list);
-//     if (result == 0)
-//     {
-//         memcpy(pAddr, result_list->ai_addr, result_list->ai_addrlen);
-//         freeaddrinfo(result_list);
-//     }
-
-//     return result;
-// }
 
 
 static char* get_hello_msg(struct app_dest *dest) {
@@ -72,28 +54,68 @@ static struct app_dest* get_dest(char *msg) {
 }
 
 
+class C {
+
+private:
+
+    map <string, neighbor> neighbor_map;
+
+// public:
+
+//     void has(string s) {
+//         if (neighbor_map.count(s))
+//             puts("class has.");
+//         else
+//             puts("class does not have");
+
+//     }
+
+//     void add(string s, neighbor n) {
+//         neighbor_map.insert({s,n});
+//     }
+
+};
+
+
+
 class ConnectionServer {
 
 private:
+
+    map <string, neighbor> neighbor_map;
+
     int nfds, epollfd, status, sd;
     struct epoll_event ev, events[MAX_EVENTS];
     
     char *hello_msg;
     ssize_t msg_size;
-
-    map<string, neighbor> neighbor_map {};
-
+    
     void add_neighbor(struct sockaddr_in clientaddr) {
 
         string ip = inet_ntoa(clientaddr.sin_addr);
+        
+       
+        // if (neighbor_map.count("A") > 0) {
+        //     puts("has");
+        // } 
+        // else
+        //     puts("has not");
 
-        neighbor n = {
-            .addr = clientaddr,
-            .lastHello = time(nullptr)
-        };
+        // if (my_map.count("A") > 0) {
+        //     puts("has");
+        // } 
+        // else
+        //     puts("has not");
 
-        // neighbor_map[ip] = n;
+        // neighbor_map.insert({ip,n});
         puts("inserted.");
+
+
+
+
+
+
+
         // if(neighbor_map.count(ip))
         //     puts("found in map");
         // else
@@ -120,6 +142,15 @@ private:
 
 
 public:
+
+    void has(string s) {
+    
+        if (neighbor_map.count(s))
+            puts("class has.");
+        else
+            puts("class does not have");
+
+    }
 
     void start() {
 

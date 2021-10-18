@@ -25,59 +25,6 @@ struct neighbor {
 };
 
 
-static char* get_hello_msg(struct app_dest *dest) {
-
-    char *msg = (char*) malloc(sizeof "0000:000000:000000:00000000000000000000000000000000");
-
-    char gid[33];
-    gid_to_wire_gid(dest->gid, gid);
-	sprintf(msg, "%04x:%06x:%06x:%s", dest->lid, dest->qpn,
-							dest->psn, gid);
-
-    return msg;
-
-}
-
-static struct app_dest* get_dest(char *msg) {
-
-    struct app_dest *rem_dest;
-    memset(rem_dest, 0, sizeof rem_dest);
-
-    char gid[33];
-	sscanf(msg, "%x:%x:%x:%s", &rem_dest->lid, &rem_dest->qpn,
-							&rem_dest->psn, gid);
-    free(msg);
-	wire_gid_to_gid(gid, rem_dest->gid);
-
-    return rem_dest;
-
-}
-
-
-class C {
-
-private:
-
-    map <string, neighbor> neighbor_map;
-
-// public:
-
-//     void has(string s) {
-//         if (neighbor_map.count(s))
-//             puts("class has.");
-//         else
-//             puts("class does not have");
-
-//     }
-
-//     void add(string s, neighbor n) {
-//         neighbor_map.insert({s,n});
-//     }
-
-};
-
-
-
 class ConnectionServer {
 
 private:
@@ -89,68 +36,67 @@ private:
     
     char *hello_msg;
     ssize_t msg_size;
+
+    static char* get_hello_msg(struct app_dest *dest) {
+
+        char *msg = (char*) malloc(sizeof "0000:000000:000000:00000000000000000000000000000000");
+
+        char gid[33];
+        gid_to_wire_gid(dest->gid, gid);
+        sprintf(msg, "%04x:%06x:%06x:%s", dest->lid, dest->qpn,
+                                dest->psn, gid);
+
+        return msg;
+
+    }
+
+    static struct app_dest* get_dest(char *msg) {
+
+        struct app_dest *rem_dest;
+        memset(rem_dest, 0, sizeof rem_dest);
+
+        char gid[33];
+        sscanf(msg, "%x:%x:%x:%s", &rem_dest->lid, &rem_dest->qpn,
+                                &rem_dest->psn, gid);
+        free(msg);
+        wire_gid_to_gid(gid, rem_dest->gid);
+
+        return rem_dest;
+
+    }
+
+
     
     void add_neighbor(struct sockaddr_in clientaddr) {
 
         string ip = inet_ntoa(clientaddr.sin_addr);
-        
-       
-        // if (neighbor_map.count("A") > 0) {
-        //     puts("has");
-        // } 
-        // else
-        //     puts("has not");
+  
+        if(neighbor_map.count(ip))
+            puts("found in map");
+        else
+            puts("not found in map");
 
-        // if (my_map.count("A") > 0) {
-        //     puts("has");
-        // } 
-        // else
-        //     puts("has not");
+        if (neighbor_map.count(ip)  == 0 ) {
+            puts("adding new addr");
+            neighbor n = {
+                .addr = clientaddr,
+                .lastHello = time(nullptr)
+            };
+            neighbor_map[ip] = n;
 
-        // neighbor_map.insert({ip,n});
-        puts("inserted.");
-
-
-
-
-
-
-
-        // if(neighbor_map.count(ip))
-        //     puts("found in map");
-        // else
-        //     puts("not found in map");
-
-        // if (neighbor_map.count(ip)  == 0 ) {
-        // //     puts("adding new addr");
-        //     neighbor n = {
-        //         .addr = clientaddr,
-        //         .lastHello = time(nullptr)
-        //     };
-        // //     neighbor_map[ip] = n;
-
-        // //     send_hello(clientaddr);
-        // }
+        //     send_hello(clientaddr);
+        }
             
-        // else {
-        //     printf("address %s exists. updating last hellow time.\n", ip);
-        //     neighbor_map[ip].lastHello = time(nullptr);
+        else {
+            printf("address %s exists. updating last hellow time.\n", ip);
+            neighbor_map[ip].lastHello = time(nullptr);
 
-        // }
+        }
 
     }
 
 
 public:
-
-    void has(string s) {
-    
-        if (neighbor_map.count(s))
-            puts("class has.");
-        else
-            puts("class does not have");
-
-    }
 
     void start() {
 

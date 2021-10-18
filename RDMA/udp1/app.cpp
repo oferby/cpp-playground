@@ -3,9 +3,10 @@
 #include "udp_server.cpp"
 
 int main(int argc, char* argv[]) {
+    
+    RdmaHandler rdmaHandler;
 
-    ConnectionServer conn_server;
-    RdmaHandler rdmaHandler {};
+    ConnectionServer conn_server;    
 
     conn_server.start();
     conn_server.set_hello_msg(rdmaHandler.get_local_dest());

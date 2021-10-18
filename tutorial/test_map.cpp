@@ -31,6 +31,28 @@ struct neighbor {
     time_t lastHello;
 };
 
+class C {
+
+private:
+
+    map<string,neighbor> my_map2;
+
+public:
+
+    void has(string s) {
+        if (my_map2.count(s))
+            puts("class has.");
+        else
+            puts("class does not have");
+
+    }
+
+    void add(string s, neighbor n) {
+        my_map2.insert({s,n});
+    }
+
+};
+
 int main(int argc, char *argv[]) {
 
     S s = {
@@ -41,7 +63,7 @@ int main(int argc, char *argv[]) {
         .lastHello = time(nullptr)
     };
 
-    map <std::string, neighbor > my_map;
+    map <string, neighbor > my_map;
 
     if (my_map.count("A")) {
         puts("has");
@@ -53,7 +75,16 @@ int main(int argc, char *argv[]) {
 
     if (my_map.count("A")) {
         puts("has");
+        printf("A: %i\n", my_map["A"].lastHello);
     } 
     else
         puts("has not");
+
+
+    puts("   C: ");
+    C c;
+
+    c.has("B");
+    c.add("B",n);
+    c.has("B");
 }

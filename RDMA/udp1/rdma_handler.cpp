@@ -45,30 +45,37 @@ enum ibv_mtu mtu_to_enum(int mtu)
 	}
 }
 
-static void cleanup(struct app_context *ctx) {
-    if(ctx->qp)
-	    ibv_destroy_qp(ctx->qp);
-
-    if (ctx->cq)
-	    ibv_destroy_cq(ctx->cq);
-    if (ctx->mr)
-	    ibv_dereg_mr(ctx->mr);
-
-    if (ctx->pd)
-	    ibv_dealloc_pd(ctx->pd);
-
-    if (ctx->ctx)
-	    ibv_close_device(ctx->ctx);
-
-    if (ctx->buf)
-	    free(ctx->buf);
-
-	free(ctx);
-
-}
 
 
-static void createQueuePair(struct app_context *app_ctx) {
+class RdmaHandler {
+    
+    app_context app_ctx;
+    app_dest local_dest;
+
+    static void cleanup(struct app_context *ctx) {
+        if(ctx->qp)
+            ibv_destroy_qp(ctx->qp);
+
+        if (ctx->cq)
+            ibv_destroy_cq(ctx->cq);
+        if (ctx->mr)
+            ibv_dereg_mr(ctx->mr);
+
+        if (ctx->pd)
+            ibv_dealloc_pd(ctx->pd);
+
+        if (ctx->ctx)
+            ibv_close_device(ctx->ctx);
+
+        if (ctx->buf)
+            free(ctx->buf);
+
+        free(ctx);
+
+    }
+
+
+    static void createQueuePair(struct app_context *app_ctx) {
 
 		struct ibv_qp_attr attr;
 		struct ibv_qp_init_attr init_attr = {
@@ -90,29 +97,29 @@ static void createQueuePair(struct app_context *app_ctx) {
             exit(EXIT_FAILURE);
 		}
 
-}
+    }
 
 
-static void do_qp_change(struct ibv_qp* qp, struct ibv_qp_attr *attr, int state, char *mode) {
+    static void do_qp_change(struct ibv_qp* qp, struct ibv_qp_attr *attr, int state, char *mode) {
 
-    auto status = ibv_modify_qp(qp, attr, state);
+        auto status = ibv_modify_qp(qp, attr, state);
 
-    if (status == 0)
-        printf("QP changed to %s\n", mode);
-    else if (status == EINVAL)
-        printf("Invalid value provided in attr or in attr_mask for mode %s\n", mode);
-    else if (status == ENOMEM)
-        printf("Not enough resources to complete this operation for mode %s\n", mode);
-    else
-        printf("QP modify status: %i for mode %s\n",status, mode);
+        if (status == 0)
+            printf("QP changed to %s\n", mode);
+        else if (status == EINVAL)
+            printf("Invalid value provided in attr or in attr_mask for mode %s\n", mode);
+        else if (status == ENOMEM)
+            printf("Not enough resources to complete this operation for mode %s\n", mode);
+        else
+            printf("QP modify status: %i for mode %s\n",status, mode);
 
-    if (status != 0)
-        exit(EXIT_FAILURE);
+        if (status != 0)
+            exit(EXIT_FAILURE);
 
-}
+    }
 
 
-static void changeQueuePairState(struct app_context *app_ctx) {
+    static void changeQueuePairState(struct app_context *app_ctx) {
 
 		struct ibv_qp_attr attr = {
 			.qp_state        = IBV_QPS_INIT,
@@ -142,81 +149,73 @@ static void changeQueuePairState(struct app_context *app_ctx) {
 
         puts("QP ready.");
 
-}
-
-
-static struct app_context* setup_context() {
-
-    struct app_context *app_ctx;
-    struct ibv_device   **dev_list;
-    struct ibv_device   *ib_dev;
-    int status;
-
-    memset(app_ctx, 0, sizeof app_ctx);
-
-    dev_list = ibv_get_device_list(NULL);
-
-    if (!dev_list) {
-        perror("error getting IB device list");
-        exit(EXIT_FAILURE);
     }
 
-    ib_dev = *dev_list;
-    if (!ib_dev) {
-        perror("device list empty");
-        exit(EXIT_FAILURE);
+
+    static void setup_context(app_context *app_ctx) {
+
+        ibv_device   **dev_list;
+        ibv_device   *ib_dev;
+        int status;
+
+        dev_list = ibv_get_device_list(NULL);
+
+        if (!dev_list) {
+            perror("error getting IB device list");
+            exit(EXIT_FAILURE);
+        }
+
+        ib_dev = *dev_list;
+        if (!ib_dev) {
+            perror("device list empty");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("using dev name: %s\n", ib_dev->name);
+
+        app_ctx->ctx = ibv_open_device(ib_dev);
+        if (!app_ctx->ctx) {
+            perror("error creating context");
+            exit(EXIT_FAILURE);
+        }
+
+        ibv_free_device_list(dev_list);
+
+        ibv_port_attr port_attr;
+        status = ibv_query_port(app_ctx->ctx, IB_PORT, &port_attr);
+        if (status == -1) {
+            perror("could not get port info");
+            exit(EXIT_FAILURE);
+        }
+        app_ctx->portinfo = &port_attr;
+
+        app_ctx->pd = ibv_alloc_pd(app_ctx->ctx);
+
+        int cq_size = 0x10;
+        app_ctx->cq = ibv_create_cq(app_ctx->ctx, cq_size, nullptr, nullptr, 0);
+
+        createQueuePair(app_ctx);
+
+        changeQueuePairState(app_ctx);
+
     }
 
-    printf("using dev name: %s\n", ib_dev->name);
-
-    app_ctx->ctx = ibv_open_device(ib_dev);
-    if (!app_ctx->ctx) {
-        perror("error creating context");
-        exit(EXIT_FAILURE);
-    }
-
-    ibv_free_device_list(dev_list);
-
-    ibv_port_attr port_attr;
-    status = ibv_query_port(app_ctx->ctx, IB_PORT, &port_attr);
-    if (status == -1) {
-        perror("could not get port info");
-        exit(EXIT_FAILURE);
-    }
-    app_ctx->portinfo = &port_attr;
-
-    app_ctx->pd = ibv_alloc_pd(app_ctx->ctx);
-
-    int cq_size = 0x10;
-    app_ctx->cq = ibv_create_cq(app_ctx->ctx, cq_size, nullptr, nullptr, 0);
-
-    createQueuePair(app_ctx);
-
-    changeQueuePairState(app_ctx);
-
-    return app_ctx;
-}
-
-
-class RdmaHandler {
-    
-    app_context *app_ctx;
-    app_dest local_dest;
 
 public:
     RdmaHandler() {
         
-        app_ctx = setup_context();
+        memset(&app_ctx, 0, sizeof app_ctx);
+        setup_context(&app_ctx);
         
         int status;
 
-        local_dest.lid = app_ctx->portinfo->lid;
-        local_dest.qpn = app_ctx->qp->qp_num;
+        local_dest.lid = app_ctx.portinfo->lid;
+        local_dest.qpn = app_ctx.qp->qp_num;
         local_dest.psn = 1;
         
         union ibv_gid local_gid;
 
-        status = ibv_query_gid(app_ctx->ctx, IB_PORT, GID_IDX, &local_gid);
+        status = ibv_query_gid(app_ctx.ctx, IB_PORT, GID_IDX, &local_gid);
         if (status == -1) {
             perror("could not get GID");
             exit(EXIT_FAILURE);

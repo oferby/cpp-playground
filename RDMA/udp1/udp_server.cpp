@@ -50,18 +50,15 @@ private:
 
     }
 
-    static struct app_dest* get_dest(char *msg) {
+    static void get_dest(char *msg, app_dest *rem_dest) {
 
-        struct app_dest *rem_dest;
-        memset(rem_dest, 0, sizeof rem_dest);
-
-        char gid[33];
+        char tmp_gid[33];
         sscanf(msg, "%x:%x:%x:%s", &rem_dest->lid, &rem_dest->qpn,
-                                &rem_dest->psn, gid);
-        free(msg);
-        wire_gid_to_gid(gid, rem_dest->gid);
-
-        return rem_dest;
+                                &rem_dest->psn, tmp_gid);
+        // free(msg);
+        ibv_gid gid;
+        wire_gid_to_gid(tmp_gid, &gid);
+        rem_dest->gid = &gid;
 
     }
 
@@ -69,7 +66,7 @@ private:
     
     void add_neighbor(struct sockaddr_in clientaddr) {
 
-        string ip = inet_ntoa(clientaddr.sin_addr);
+        char *ip = inet_ntoa(clientaddr.sin_addr);
   
         if(neighbor_map.count(ip))
             puts("found in map");
@@ -88,7 +85,7 @@ private:
         }
             
         else {
-            printf("address %s exists. updating last hellow time.\n", ip);
+            printf("address %s exists. updating last hello time.\n", ip);
             neighbor_map[ip].lastHello = time(nullptr);
 
         }
@@ -155,7 +152,11 @@ public:
         len = recvfrom(sd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr*)&clientaddr, &client);
         if (len > 0) {
             char *ip = inet_ntoa(clientaddr.sin_addr);
+            app_dest rem_dest;
+            memset(&rem_dest, 0, sizeof rem_dest);
+            get_dest(recvbuf, &rem_dest);
             printf("got %i bytes from %s\n", len, ip);
+            print_dest(&rem_dest);
             add_neighbor(clientaddr);
         }
     }
@@ -204,11 +205,8 @@ public:
     }
 
     void set_hello_msg(struct app_dest *local_dest) {
-        
         this->hello_msg = get_hello_msg(local_dest);
-        this->msg_size = sizeof this->hello_msg;
-        puts("hello message set");
-
+        this->msg_size = sizeof "0000:000000:000000:00000000000000000000000000000000";
     }
 
 

@@ -224,6 +224,15 @@ public:
         local_dest.gid = &local_gid;
         print_dest(&local_dest);
 
+        // 
+
+        // char gid_tmp[33];
+        // gid_to_wire_gid(local_dest.gid, gid_tmp);
+        // ibv_gid ibv_gid_tmp;
+        // wire_gid_to_gid(gid_tmp, &ibv_gid_tmp);
+        // local_dest.gid = &ibv_gid_tmp;
+        // print_dest(&local_dest);
+
 
     }
 

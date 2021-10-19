@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <string.h>
 #include <iostream>
+#include <set>
 #include <map>
 #include "rdma_handler.h"
 
@@ -17,19 +18,12 @@ using namespace std;
 #define PORT 8585
 
 
-
-struct neighbor {
-    sockaddr_in addr;
-    app_dest *dest;
-    time_t lastHello;
-};
-
-
 class ConnectionServer {
 
 private:
 
     map <uint32_t, neighbor> neighbor_map;
+    set <uint32_t> pending_hello;
 
     int nfds, epollfd, status, sd;
     struct epoll_event ev, events[MAX_EVENTS];
@@ -61,11 +55,11 @@ private:
     }
 
     
-    void add_neighbor(sockaddr_in clientaddr, app_dest *rem_dest) {
+    void add_neighbor(sockaddr_in *clientaddr, socklen_t *clientaddr_len, app_dest *rem_dest) {
 
-        char *ip = inet_ntoa(clientaddr.sin_addr);
+        char *ip = inet_ntoa(clientaddr->sin_addr);
   
-        if (neighbor_map.count(clientaddr.sin_addr.s_addr)  == 0 ) {
+        if (neighbor_map.count(clientaddr->sin_addr.s_addr)  == 0 ) {
             puts("adding new addr");
             
             neighbor n = {
@@ -74,18 +68,40 @@ private:
                 .lastHello = time(nullptr)
             };
 
-            neighbor_map[clientaddr.sin_addr.s_addr] = n;
+            neighbor_map[clientaddr->sin_addr.s_addr] = n;
 
-        //     send_hello(clientaddr);
+            check_sending_hello(clientaddr, clientaddr_len);
+        
         }
             
         else {
+            
             printf("address %s exists. updating last hello time.\n", ip);
-            neighbor_map[clientaddr.sin_addr.s_addr].lastHello = time(nullptr);
+            neighbor_map[clientaddr->sin_addr.s_addr].lastHello = time(nullptr);
             free(rem_dest->gid);
             free(rem_dest);
 
+            check_sending_hello(clientaddr, clientaddr_len);
+
         }
+
+    }
+
+    void check_sending_hello(sockaddr_in *clientaddr, socklen_t *clientaddr_len) {
+        
+        if (pending_hello.find(clientaddr->sin_addr.s_addr) == pending_hello.end() ) {
+            
+            puts("client address not in pending list. sending hello.");
+
+            pending_hello.insert(clientaddr->sin_addr.s_addr);
+
+            send_hello(clientaddr, clientaddr_len);
+
+            return;
+        } 
+
+        puts("client address in pending list.");
+        pending_hello.erase(clientaddr->sin_addr.s_addr);
 
     }
 
@@ -143,10 +159,10 @@ public:
     {
         char recvbuf[65536] = { 0 }; 
         int len;
-        struct sockaddr_in clientaddr;
-        socklen_t client = sizeof(struct sockaddr);
+        sockaddr_in clientaddr;
+        socklen_t clientaddr_len = sizeof(struct sockaddr);
 
-        len = recvfrom(sd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr*)&clientaddr, &client);
+        len = recvfrom(sd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr*)&clientaddr, &clientaddr_len);
         if (len > 0) {
             char *ip = inet_ntoa(clientaddr.sin_addr);
             printf("got %i bytes from %s\n", len, ip);
@@ -158,7 +174,7 @@ public:
             get_dest(recvbuf, rem_dest);
             
             print_dest(rem_dest);
-            add_neighbor(clientaddr, rem_dest);
+            add_neighbor(&clientaddr, &clientaddr_len, rem_dest);
         }
     }
 
@@ -178,7 +194,7 @@ public:
 
     void send_hello(char *dest) {
 
-        printf("sending hello message to %s\n", dest);
+        printf("sending first hello message to %s\n", dest);
 
         sockaddr_in servaddr;
         bzero(&servaddr,sizeof(servaddr));
@@ -186,19 +202,21 @@ public:
         servaddr.sin_addr.s_addr = inet_addr(dest);
         servaddr.sin_port = htons(PORT);
 
-        send_hello(servaddr);
+        this->pending_hello.insert(servaddr.sin_addr.s_addr);
+        
+        socklen_t clientaddr_len = sizeof(struct sockaddr);
+        send_hello(&servaddr, &clientaddr_len);
 
 
     }
 
-    void send_hello(sockaddr_in dest) {
+    void send_hello(sockaddr_in *dest, socklen_t *clientaddr_len) {
     
-        printf("sending hello to %s\n", inet_ntoa(dest.sin_addr));
-        
+        printf("sending hello to %s\n", inet_ntoa(dest->sin_addr));
 
         int result;
 
-        result = sendto(sd, this->hello_msg, this->msg_size, 0, (sockaddr*)&dest, sizeof(dest));
+        result = sendto(sd, this->hello_msg, this->msg_size, 0, (sockaddr*) dest, *clientaddr_len);
         if (result < 0) {
             perror("error sendin hellow message");
         } else {

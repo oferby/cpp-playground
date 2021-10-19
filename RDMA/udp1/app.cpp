@@ -4,12 +4,10 @@
 
 int main(int argc, char* argv[]) {
     
-    
     ConnectionServer conn_server;    
     RdmaHandler rdmaHandler;
 
     app_dest *dest =  rdmaHandler.get_local_dest();
-    // print_dest(dest);
     conn_server.set_hello_msg(dest);
     conn_server.start();
    
@@ -23,8 +21,6 @@ int main(int argc, char* argv[]) {
     {
         conn_server.handle_events();
     }
-
-
         
 
 }

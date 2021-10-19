@@ -12,6 +12,13 @@ struct app_dest {
 };
 
 
+struct neighbor {
+    sockaddr_in *addr;
+    app_dest *dest;
+    time_t lastHello;
+};
+
+
 void print_gid(const union ibv_gid *gid) {
 		static char gid_tmp[33];
         inet_ntop(AF_INET6, gid, gid_tmp, INET6_ADDRSTRLEN);

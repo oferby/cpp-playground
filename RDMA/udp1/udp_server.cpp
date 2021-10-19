@@ -29,7 +29,7 @@ class ConnectionServer {
 
 private:
 
-    map <string, neighbor> neighbor_map;
+    map <uint32_t, neighbor> neighbor_map;
 
     int nfds, epollfd, status, sd;
     struct epoll_event ev, events[MAX_EVENTS];
@@ -65,7 +65,7 @@ private:
 
         char *ip = inet_ntoa(clientaddr.sin_addr);
   
-        if (neighbor_map.count(ip)  == 0 ) {
+        if (neighbor_map.count(clientaddr.sin_addr.s_addr)  == 0 ) {
             puts("adding new addr");
             
             neighbor n = {
@@ -74,14 +74,14 @@ private:
                 .lastHello = time(nullptr)
             };
 
-            neighbor_map[ip] = n;
+            neighbor_map[clientaddr.sin_addr.s_addr] = n;
 
         //     send_hello(clientaddr);
         }
             
         else {
             printf("address %s exists. updating last hello time.\n", ip);
-            neighbor_map[ip].lastHello = time(nullptr);
+            neighbor_map[clientaddr.sin_addr.s_addr].lastHello = time(nullptr);
             free(rem_dest->gid);
             free(rem_dest);
 

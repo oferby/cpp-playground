@@ -60,7 +60,10 @@
         "thread": "cpp",
         "cfenv": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "pingpong.h": "c",
+        "endian.h": "c",
+        "stdlib.h": "c"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

@@ -50,7 +50,7 @@ enum ibv_mtu mtu_to_enum(int mtu)
 class RdmaHandler {
     
     app_context app_ctx;
-    app_dest local_dest;
+    app_dest *local_dest;
 
     static void cleanup(struct app_context *ctx) {
         if(ctx->qp)
@@ -208,38 +208,28 @@ public:
         setup_context(&app_ctx);
         
         int status;
-
-        local_dest.lid = app_ctx.portinfo->lid;
-        local_dest.qpn = app_ctx.qp->qp_num;
-        local_dest.psn = 1;
         
-        union ibv_gid local_gid;
+        local_dest = (app_dest*) malloc(sizeof local_dest);
+        memset(local_dest, 0, sizeof local_dest);
+        local_dest->lid = app_ctx.portinfo->lid;
+        local_dest->qpn = app_ctx.qp->qp_num;
+        local_dest->psn = 1;
+        
+        local_dest->gid = (ibv_gid*) malloc(sizeof local_dest->gid);
 
-        status = ibv_query_gid(app_ctx.ctx, IB_PORT, GID_IDX, &local_gid);
+        status = ibv_query_gid(app_ctx.ctx, IB_PORT, GID_IDX, local_dest->gid);
         if (status == -1) {
             perror("could not get GID");
             exit(EXIT_FAILURE);
         }
 
-        local_dest.gid = &local_gid;
-        print_dest(&local_dest);
-
-        // 
-
-        // char gid_tmp[33];
-        // gid_to_wire_gid(local_dest.gid, gid_tmp);
-        // ibv_gid ibv_gid_tmp;
-        // wire_gid_to_gid(gid_tmp, &ibv_gid_tmp);
-        // local_dest.gid = &ibv_gid_tmp;
-        // print_dest(&local_dest);
-
+        print_dest(local_dest);
+        
 
     }
 
     struct app_dest* get_local_dest() {
-
-        return &local_dest;
-
+        return local_dest;
     }
     
 

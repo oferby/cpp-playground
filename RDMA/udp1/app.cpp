@@ -4,12 +4,15 @@
 
 int main(int argc, char* argv[]) {
     
+    
+    ConnectionServer conn_server;    
     RdmaHandler rdmaHandler;
 
-    ConnectionServer conn_server;    
-
+    app_dest *dest =  rdmaHandler.get_local_dest();
+    // print_dest(dest);
+    conn_server.set_hello_msg(dest);
     conn_server.start();
-    conn_server.set_hello_msg(rdmaHandler.get_local_dest());
+   
 
     if (argc > 1) {
         conn_server.send_hello(argv[1]);

@@ -20,7 +20,7 @@ using namespace std;
 
 struct neighbor {
     sockaddr_in addr;
-    app_dest dest;
+    app_dest *dest;
     time_t lastHello;
 };
 
@@ -44,8 +44,7 @@ private:
         char gid[33];
         gid_to_wire_gid(dest->gid, gid);
         sprintf(msg, "%04x:%06x:%06x:%s", dest->lid, dest->qpn,
-                                dest->psn, gid);
-
+                        dest->psn, gid);
         return msg;
 
     }
@@ -55,30 +54,26 @@ private:
         char tmp_gid[33];
         sscanf(msg, "%x:%x:%x:%s", &rem_dest->lid, &rem_dest->qpn,
                                 &rem_dest->psn, tmp_gid);
-        // free(msg);
-        ibv_gid gid;
-        wire_gid_to_gid(tmp_gid, &gid);
-        rem_dest->gid = &gid;
+
+        rem_dest->gid = (ibv_gid*) malloc(sizeof rem_dest->gid);
+        wire_gid_to_gid(tmp_gid, rem_dest->gid);
 
     }
 
-
     
-    void add_neighbor(struct sockaddr_in clientaddr) {
+    void add_neighbor(sockaddr_in clientaddr, app_dest *rem_dest) {
 
         char *ip = inet_ntoa(clientaddr.sin_addr);
   
-        if(neighbor_map.count(ip))
-            puts("found in map");
-        else
-            puts("not found in map");
-
         if (neighbor_map.count(ip)  == 0 ) {
             puts("adding new addr");
+            
             neighbor n = {
                 .addr = clientaddr,
+                .dest = rem_dest,
                 .lastHello = time(nullptr)
             };
+
             neighbor_map[ip] = n;
 
         //     send_hello(clientaddr);
@@ -87,6 +82,8 @@ private:
         else {
             printf("address %s exists. updating last hello time.\n", ip);
             neighbor_map[ip].lastHello = time(nullptr);
+            free(rem_dest->gid);
+            free(rem_dest);
 
         }
 
@@ -152,12 +149,16 @@ public:
         len = recvfrom(sd, recvbuf, sizeof(recvbuf), 0, (struct sockaddr*)&clientaddr, &client);
         if (len > 0) {
             char *ip = inet_ntoa(clientaddr.sin_addr);
-            app_dest rem_dest;
-            memset(&rem_dest, 0, sizeof rem_dest);
-            get_dest(recvbuf, &rem_dest);
             printf("got %i bytes from %s\n", len, ip);
-            print_dest(&rem_dest);
-            add_neighbor(clientaddr);
+
+            app_dest *rem_dest;
+            rem_dest = (app_dest*) malloc(sizeof rem_dest);
+            memset(rem_dest, 0, sizeof rem_dest);
+            
+            get_dest(recvbuf, rem_dest);
+            
+            print_dest(rem_dest);
+            add_neighbor(clientaddr, rem_dest);
         }
     }
 
@@ -193,6 +194,7 @@ public:
     void send_hello(sockaddr_in dest) {
     
         printf("sending hello to %s\n", inet_ntoa(dest.sin_addr));
+        
 
         int result;
 

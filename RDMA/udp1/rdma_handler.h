@@ -1,4 +1,5 @@
 #include <infiniband/verbs.h>
+#include <endian.h>
 
 #ifndef RDMA_HANDLER 
 #define RDMA_HANDLER 
@@ -10,7 +11,18 @@ struct app_dest {
 	union ibv_gid *gid;
 };
 
+
+void print_gid(const union ibv_gid *gid) {
+		static char gid_tmp[33];
+        inet_ntop(AF_INET6, gid, gid_tmp, INET6_ADDRSTRLEN);
+	    printf(" ** GID %s\n", gid_tmp);
+
+}
+
+
+
 static void wire_gid_to_gid(const char *wgid, union ibv_gid *gid) { 
+
 	char tmp[9];
 	__be32 v32;
 	int i;
@@ -22,21 +34,25 @@ static void wire_gid_to_gid(const char *wgid, union ibv_gid *gid) {
 		tmp_gid[i] = be32toh(v32);
 	}
 	memcpy(gid, tmp_gid, sizeof(*gid));
+
 }
 
 static void gid_to_wire_gid(const union ibv_gid *gid, char wgid[]) {
+
 	uint32_t tmp_gid[4];
 	int i;
 
 	memcpy(tmp_gid, gid, sizeof(tmp_gid));
 	for (i = 0; i < 4; ++i)
 		sprintf(&wgid[i * 8], "%08x", htobe32(tmp_gid[i]));
+
 }
+
 
 void print_dest(struct app_dest * dest) {
 		static char gid[33];
         inet_ntop(AF_INET6, dest->gid, gid, sizeof gid);
-	    printf("  local address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x: GID %s\n",
+	    printf("  address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x: GID %s\n",
 			dest->lid, dest->qpn, dest->psn, gid);
 }
 

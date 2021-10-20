@@ -16,6 +16,10 @@
 #define QKEY 0x11111111
 #define GID_IDX 0
 #define IB_PORT 1
+#define MSG_SIZE 1500
+#define CQ_SIZE 10
+#define MAX_WR 10
+#define MAX_SGE 1
 
 struct app_context {
 	struct ibv_context	*ctx;
@@ -31,20 +35,8 @@ struct app_context {
 	int			 rx_depth;
 	int			 pending;
 	struct ibv_port_attr     *portinfo;
+    uint64_t wid = 0;
 };
-
-enum ibv_mtu mtu_to_enum(int mtu)
-{
-	switch (mtu) {
-	case 256:  return IBV_MTU_256;
-	case 512:  return IBV_MTU_512;
-	case 1024: return IBV_MTU_1024;
-	case 2048: return IBV_MTU_2048;
-	case 4096: return IBV_MTU_4096;
-	default:   throw std::invalid_argument("invalid mtu");
-	}
-}
-
 
 
 class RdmaHandler {
@@ -82,10 +74,10 @@ class RdmaHandler {
 			.send_cq = app_ctx->cq,
 			.recv_cq = app_ctx->cq,
 			.cap     = {
-				.max_send_wr  = 10,
-				.max_recv_wr  = 10,
-				.max_send_sge = 10,
-				.max_recv_sge = 10
+				.max_send_wr  = MAX_WR,
+				.max_recv_wr  = MAX_WR,
+				.max_send_sge = MAX_SGE,
+				.max_recv_sge = MAX_SGE
 			},
 			.qp_type = IBV_QPT_UD,
 		};
@@ -118,6 +110,60 @@ class RdmaHandler {
 
     }
 
+    static void setup_memory(app_context *app_ctx) {
+        
+        puts("setting up memory.");
+
+        int mr_size =  ( MSG_SIZE + 40 ) * MAX_WR * 2;
+        int alignment = sysconf(_SC_PAGESIZE);
+        app_ctx->buf = (char*) memalign(alignment, mr_size);
+
+        if (!app_ctx->buf) {
+            perror("error creating memory buffer.");
+            cleanup(app_ctx);
+            exit(EXIT_FAILURE);
+        }
+
+        app_ctx->mr = ibv_reg_mr(app_ctx->pd, app_ctx->buf, mr_size, IBV_ACCESS_LOCAL_WRITE);
+        if (!app_ctx->mr) {
+            perror("error registering memory");
+            cleanup(app_ctx);
+            exit(EXIT_FAILURE);
+        }
+
+        uint32_t msg_size = MSG_SIZE + 40;
+
+        for (int i = 0; i < MAX_WR; i++) {
+                // 
+            uint64_t mem_addr = ( (uintptr_t) app_ctx->buf ) + msg_size * i;
+
+            ibv_sge sge = {
+                .addr = mem_addr,
+                .length = msg_size,
+                .lkey = app_ctx->mr->lkey,
+            };
+
+            ibv_recv_wr rec_wr = {
+                .wr_id = app_ctx->wid++,
+                .sg_list = &sge,
+                .num_sge = 1,
+            };
+
+            ibv_recv_wr *bad_wr;
+
+            // ibv_post_recv(app_ctx->qp, &rec_wr, &bad_wr);
+
+            if (ibv_post_recv(app_ctx->qp, &rec_wr, &bad_wr)) {
+                perror("error posting RR.");
+                cleanup(app_ctx);
+                exit(EXIT_FAILURE);    
+            } 
+
+        }
+        
+        puts("memory and WRs added.");
+
+    }
 
     static void changeQueuePairState(struct app_context *app_ctx) {
 
@@ -158,6 +204,7 @@ class RdmaHandler {
         ibv_device   *ib_dev;
         int status;
 
+
         dev_list = ibv_get_device_list(NULL);
 
         if (!dev_list) {
@@ -191,12 +238,13 @@ class RdmaHandler {
 
         app_ctx->pd = ibv_alloc_pd(app_ctx->ctx);
 
-        int cq_size = 0x10;
-        app_ctx->cq = ibv_create_cq(app_ctx->ctx, cq_size, nullptr, nullptr, 0);
+        app_ctx->cq = ibv_create_cq(app_ctx->ctx, CQ_SIZE, nullptr, nullptr, 0);
 
         createQueuePair(app_ctx);
 
         changeQueuePairState(app_ctx);
+
+        setup_memory(app_ctx);       
 
     }
 

@@ -20,6 +20,7 @@ int main(int argc, char* argv[]) {
     while (1)
     {
         conn_server.handle_events();
+        rdmaHandler.poll_complition();
     }
         
 

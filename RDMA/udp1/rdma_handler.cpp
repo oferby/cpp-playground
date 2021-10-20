@@ -44,6 +44,9 @@ class RdmaHandler {
     app_context app_ctx;
     app_dest *local_dest;
 
+    int status;
+    ibv_wc wc;
+
     static void cleanup(struct app_context *ctx) {
         if(ctx->qp)
             ibv_destroy_qp(ctx->qp);
@@ -146,7 +149,7 @@ class RdmaHandler {
             ibv_recv_wr rec_wr = {
                 .wr_id = app_ctx->wid++,
                 .sg_list = &sge,
-                .num_sge = 1,
+                .num_sge = 1, 
             };
 
             ibv_recv_wr *bad_wr;
@@ -248,6 +251,11 @@ class RdmaHandler {
 
     }
 
+    void handle_wc() {
+
+
+
+    }
 
 public:
     RdmaHandler() {
@@ -280,6 +288,19 @@ public:
         return local_dest;
     }
     
+    void poll_complition() {
+
+            status = ibv_poll_cq(app_ctx.cq, 1, &wc);
+            if (status < 0) {
+                perror("error getting WC.");
+                return;
+
+            }
+
+            if( status > 0 ) 
+                handle_wc();
+                
+    }
 
 };
 

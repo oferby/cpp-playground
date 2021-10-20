@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include <time.h>
 #include <arpa/inet.h>
+#include <map>
 #include "rdma_handler.h"
 
 
@@ -46,6 +47,7 @@ class RdmaHandler {
 
     int status;
     ibv_wc wc;
+    // map <int,ibv_sge> sge_map;
 
     static void cleanup(struct app_context *ctx) {
         if(ctx->qp)
@@ -251,8 +253,45 @@ class RdmaHandler {
 
     }
 
+    void handle_rr() {
+        
+        printf("WC: received %i\n",wc.byte_len);
+
+        if (wc.wc_flags && IBV_WC_GRH) {
+            puts("GRH exists in payload.");
+
+        }
+
+
+
+
+    }
+
+    void handle_sr(){
+
+        printf("WC: sent %i bytes\n",wc.byte_len);
+
+    }
+
     void handle_wc() {
 
+        puts("handling WC.");
+
+        switch (wc.opcode) {
+
+            case IBV_WC_SEND :
+                handle_sr();
+                break;
+
+            case IBV_WC_RECV :
+                handle_rr();
+                break;
+
+            default : 
+                puts("got wrong WC opcode");
+                break;
+
+        }
 
 
     }
@@ -297,9 +336,9 @@ public:
 
             }
 
-            if( status > 0 ) 
+            if( status > 0 && wc.status == ibv_wc_status::IBV_WC_SUCCESS) 
                 handle_wc();
-                
+
     }
 
 };

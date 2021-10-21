@@ -12,6 +12,7 @@
 #include <map>
 #include "rdma_handler.h"
 
+using namespace std;
 
 #define PORT_NUM 1
 #define QKEY 0x11111111
@@ -37,17 +38,22 @@ struct app_context {
 	int			 pending;
 	struct ibv_port_attr     *portinfo;
     uint64_t wid = 0;
+    map <uint64_t,ibv_sge*> *sge_map;
+
 };
 
 
 class RdmaHandler {
     
+private:
+
     app_context app_ctx;
     app_dest *local_dest;
+    map <uint64_t,ibv_sge*> sge_map;
 
     int status;
     ibv_wc wc;
-    // map <int,ibv_sge> sge_map;
+    
 
     static void cleanup(struct app_context *ctx) {
         if(ctx->qp)
@@ -142,27 +148,26 @@ class RdmaHandler {
                 // 
             uint64_t mem_addr = ( (uintptr_t) app_ctx->buf ) + msg_size * i;
 
-            ibv_sge sge = {
-                .addr = mem_addr,
-                .length = msg_size,
-                .lkey = app_ctx->mr->lkey,
-            };
+            ibv_sge *sge = (ibv_sge*) malloc(sizeof sge);
+            sge->addr = mem_addr;
+            sge->length = msg_size;
+            sge->lkey = app_ctx->mr->lkey;
 
             ibv_recv_wr rec_wr = {
                 .wr_id = app_ctx->wid++,
-                .sg_list = &sge,
+                .sg_list = sge,
                 .num_sge = 1, 
             };
 
             ibv_recv_wr *bad_wr;
-
-            // ibv_post_recv(app_ctx->qp, &rec_wr, &bad_wr);
 
             if (ibv_post_recv(app_ctx->qp, &rec_wr, &bad_wr)) {
                 perror("error posting RR.");
                 cleanup(app_ctx);
                 exit(EXIT_FAILURE);    
             } 
+
+            app_ctx->sge_map->insert(make_pair(rec_wr.wr_id,sge));
 
         }
         
@@ -201,7 +206,6 @@ class RdmaHandler {
         puts("QP ready.");
 
     }
-
 
     static void setup_context(app_context *app_ctx) {
 
@@ -300,6 +304,7 @@ public:
     RdmaHandler() {
         
         memset(&app_ctx, 0, sizeof app_ctx);
+        app_ctx.sge_map = &sge_map;
         setup_context(&app_ctx);
         
         int status;

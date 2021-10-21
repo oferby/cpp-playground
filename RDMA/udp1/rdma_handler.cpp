@@ -10,6 +10,7 @@
 #include <time.h>
 #include <arpa/inet.h>
 #include <map>
+#include <set>
 #include "rdma_handler.h"
 
 using namespace std;
@@ -37,8 +38,10 @@ struct app_context {
 	int			 rx_depth;
 	int			 pending;
 	struct ibv_port_attr     *portinfo;
+   
     uint64_t wid = 0;
     map <uint64_t,ibv_sge*> *sge_map;
+    set<ibv_sge*> *available_send_sge_set;
 
 };
 
@@ -50,6 +53,7 @@ private:
     app_context app_ctx;
     app_dest *local_dest;
     map <uint64_t,ibv_sge*> sge_map;
+    set<ibv_sge*> available_send_sge_set;
 
     int status;
     ibv_wc wc;
@@ -121,11 +125,12 @@ private:
 
     }
 
+
     static void setup_memory(app_context *app_ctx) {
         
         puts("setting up memory.");
 
-        int mr_size =  ( MSG_SIZE + 40 ) * MAX_WR * 2;
+        int mr_size =  ( MSG_SIZE + 40 ) * MAX_WR;
         int alignment = sysconf(_SC_PAGESIZE);
         app_ctx->buf = (char*) memalign(alignment, mr_size);
 
@@ -144,9 +149,11 @@ private:
 
         uint32_t msg_size = MSG_SIZE + 40;
 
+        uint64_t mem_addr = (uintptr_t) app_ctx->buf;
+
         for (int i = 0; i < MAX_WR; i++) {
-                // 
-            uint64_t mem_addr = ( (uintptr_t) app_ctx->buf ) + msg_size * i;
+                
+            mem_addr += msg_size;
 
             ibv_sge *sge = (ibv_sge*) malloc(sizeof sge);
             sge->addr = mem_addr;
@@ -170,6 +177,21 @@ private:
             app_ctx->sge_map->insert(make_pair(rec_wr.wr_id,sge));
 
         }
+
+        for (int i = 0; i < MAX_WR; i++) {
+                
+            mem_addr += msg_size;
+
+            ibv_sge *sge = (ibv_sge*) malloc(sizeof sge);
+            sge->addr = mem_addr;
+            sge->length = msg_size;
+            sge->lkey = app_ctx->mr->lkey;
+
+            app_ctx->available_send_sge_set->insert(sge);
+
+        }
+
+
         
         puts("memory and WRs added.");
 
@@ -305,6 +327,7 @@ public:
         
         memset(&app_ctx, 0, sizeof app_ctx);
         app_ctx.sge_map = &sge_map;
+        app_ctx.available_send_sge_set = &available_send_sge_set;
         setup_context(&app_ctx);
         
         int status;

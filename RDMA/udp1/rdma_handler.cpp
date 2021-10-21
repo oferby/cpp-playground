@@ -10,7 +10,8 @@
 #include <time.h>
 #include <arpa/inet.h>
 #include <map>
-#include <set>
+#include <vector>
+
 #include "rdma_handler.h"
 
 using namespace std;
@@ -24,26 +25,7 @@ using namespace std;
 #define MAX_WR 10
 #define MAX_SGE 1
 
-struct app_context {
-	struct ibv_context	*ctx;
-	struct ibv_comp_channel *channel;
-	struct ibv_pd		*pd;
-	struct ibv_mr		*mr;
-	struct ibv_cq		*cq;
-	struct ibv_qp		*qp;
-	struct ibv_ah		*ah;
-	char			*buf;
-	int			 size;
-	int			 send_flags;
-	int			 rx_depth;
-	int			 pending;
-	struct ibv_port_attr     *portinfo;
-   
-    uint64_t wid = 0;
-    map <uint64_t,ibv_sge*> *sge_map;
-    set<ibv_sge*> *available_send_sge_set;
 
-};
 
 
 class RdmaHandler {
@@ -53,13 +35,13 @@ private:
     app_context app_ctx;
     app_dest *local_dest;
     map <uint64_t,ibv_sge*> sge_map;
-    set<ibv_sge*> available_send_sge_set;
+    vector<ibv_sge*> available_send_sge_vector;
 
     int status;
     ibv_wc wc;
     
 
-    static void cleanup(struct app_context *ctx) {
+    static void cleanup(app_context *ctx) {
         if(ctx->qp)
             ibv_destroy_qp(ctx->qp);
 
@@ -82,7 +64,7 @@ private:
     }
 
 
-    static void createQueuePair(struct app_context *app_ctx) {
+    static void createQueuePair(app_context *app_ctx) {
 
 		struct ibv_qp_attr attr;
 		struct ibv_qp_init_attr init_attr = {
@@ -92,9 +74,11 @@ private:
 				.max_send_wr  = MAX_WR,
 				.max_recv_wr  = MAX_WR,
 				.max_send_sge = MAX_SGE,
-				.max_recv_sge = MAX_SGE
+				.max_recv_sge = MAX_SGE,
+                
 			},
 			.qp_type = IBV_QPT_UD,
+            .sq_sig_all = 1
 		};
 
 		app_ctx->qp = ibv_create_qp(app_ctx->pd, &init_attr);
@@ -107,7 +91,7 @@ private:
     }
 
 
-    static void do_qp_change(struct ibv_qp* qp, struct ibv_qp_attr *attr, int state, char *mode) {
+    static void do_qp_change(ibv_qp* qp, ibv_qp_attr *attr, int state, char *mode) {
 
         auto status = ibv_modify_qp(qp, attr, state);
 
@@ -187,7 +171,7 @@ private:
             sge->length = msg_size;
             sge->lkey = app_ctx->mr->lkey;
 
-            app_ctx->available_send_sge_set->insert(sge);
+            app_ctx->available_send_sge_vector->push_back(sge);
 
         }
 
@@ -197,7 +181,7 @@ private:
 
     }
 
-    static void changeQueuePairState(struct app_context *app_ctx) {
+    static void changeQueuePairState(app_context *app_ctx) {
 
 		struct ibv_qp_attr attr = {
 			.qp_state        = IBV_QPS_INIT,
@@ -327,7 +311,7 @@ public:
         
         memset(&app_ctx, 0, sizeof app_ctx);
         app_ctx.sge_map = &sge_map;
-        app_ctx.available_send_sge_set = &available_send_sge_set;
+        app_ctx.available_send_sge_vector = &available_send_sge_vector;
         setup_context(&app_ctx);
         
         int status;
@@ -351,10 +335,14 @@ public:
 
     }
 
-    struct app_dest* get_local_dest() {
+    app_dest* get_local_dest() {
         return local_dest;
     }
     
+    app_context* get_app_context() {
+        return &app_ctx;
+    }
+
     void poll_complition() {
 
             status = ibv_poll_cq(app_ctx.cq, 1, &wc);
@@ -366,6 +354,32 @@ public:
 
             if( status > 0 && wc.status == ibv_wc_status::IBV_WC_SUCCESS) 
                 handle_wc();
+
+    }
+
+
+    void create_send_request(const char *data, size_t len, app_dest *dest) {
+
+        if (available_send_sge_vector.empty()) {
+            puts("there is no SGE available to SR.");
+            return;
+        }
+
+        puts("creating send request");
+
+        ibv_sge *sge = available_send_sge_vector.back();
+        available_send_sge_vector.pop_back();
+
+        ibv_send_wr *send_wr = new ibv_send_wr();
+        send_wr->wr_id = app_ctx.wid++,
+        send_wr->sg_list = sge;
+        send_wr->num_sge = 1;
+        send_wr->opcode = IBV_WR_SEND;
+        send_wr->wr.ud.ah = dest->ah;
+
+        ibv_send_wr *bad_wr;
+
+        // status = ibv_post_send(app_ctx.qp, send_wr, &bad_wr);
 
     }
 

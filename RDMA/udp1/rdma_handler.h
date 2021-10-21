@@ -1,14 +1,38 @@
 #include <infiniband/verbs.h>
 #include <endian.h>
+#include <map>
+#include <vector>
 
 #ifndef RDMA_HANDLER 
 #define RDMA_HANDLER 
+
+struct app_context {
+	struct ibv_context	*ctx;
+	struct ibv_comp_channel *channel;
+	struct ibv_pd		*pd;
+	struct ibv_mr		*mr;
+	struct ibv_cq		*cq;
+	struct ibv_qp		*qp;
+	struct ibv_ah		*ah;
+	char			*buf;
+	int			 size;
+	int			 send_flags;
+	int			 rx_depth;
+	int			 pending;
+	struct ibv_port_attr     *portinfo;
+   
+    uint64_t wid = 0;
+    std::map <uint64_t,ibv_sge*> *sge_map;
+    std::vector<ibv_sge*> *available_send_sge_vector;
+
+};
 
 struct app_dest {
 	uint16_t lid;
 	int qpn;
 	int psn;
 	union ibv_gid *gid;
+	ibv_ah *ah;
 };
 
 

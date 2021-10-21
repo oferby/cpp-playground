@@ -22,16 +22,19 @@ class ConnectionServer {
 
 private:
 
+    RdmaHandler *rdmaHandler;
+
     map <uint32_t, neighbor> neighbor_map;
     set <uint32_t> pending_hello;
 
     int nfds, epollfd, status, sd;
     struct epoll_event ev, events[MAX_EVENTS];
-    
+
+    app_dest *local_dest;    
     char *hello_msg;
     ssize_t msg_size;
 
-    static char* get_hello_msg(struct app_dest *dest) {
+    static char* get_hello_msg(app_dest *dest) {
 
         char *msg = (char*) malloc(sizeof "0000:000000:000000:00000000000000000000000000000000");
 
@@ -70,6 +73,27 @@ private:
 
             neighbor_map[clientaddr->sin_addr.s_addr] = n;
 
+            app_context *ctx = rdmaHandler->get_app_context();
+
+            ibv_ah_attr ah_attr = {
+                .dlid = rem_dest->lid,
+                .sl = 0,
+                .src_path_bits = 0,
+                .port_num = PORT_NUM
+            };
+            
+            ah_attr.is_global = 1;
+            ah_attr.grh.dgid = *(rem_dest->gid);
+            ah_attr.grh.hop_limit = 1;
+            ah_attr.grh.sgid_index = GID_IDX;
+
+            ibv_ah *ah = ibv_create_ah(ctx->pd, &ah_attr);
+            if (!ah) {
+                perror("error creating AH.");
+            }
+
+            n.dest->ah = ah;
+
             check_sending_hello(clientaddr, clientaddr_len);
         
         }
@@ -105,8 +129,21 @@ private:
 
     }
 
+    void set_hello_msg(app_dest *dest) {
+
+        local_dest = dest;
+        this->hello_msg = get_hello_msg(dest);
+        this->msg_size = sizeof "0000:000000:000000:00000000000000000000000000000000";
+    }
+
 
 public:
+
+    void set_rdma_handler(RdmaHandler *handler) {
+        rdmaHandler = handler;
+        app_dest *dest =  rdmaHandler->get_local_dest();
+        set_hello_msg(dest);
+    }
 
     void start() {
 
@@ -180,7 +217,7 @@ public:
 
     void handle_events() {
 
-        nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+        nfds = epoll_wait(epollfd, events, MAX_EVENTS, 10);
         if (nfds == -1) {
             perror("epoll wait error!");
             exit(EXIT_FAILURE);
@@ -203,7 +240,7 @@ public:
         servaddr.sin_port = htons(PORT);
 
         this->pending_hello.insert(servaddr.sin_addr.s_addr);
-        
+
         socklen_t clientaddr_len = sizeof(struct sockaddr);
         send_hello(&servaddr, &clientaddr_len);
 
@@ -224,10 +261,15 @@ public:
         }
     }
 
-    void set_hello_msg(struct app_dest *local_dest) {
-        this->hello_msg = get_hello_msg(local_dest);
-        this->msg_size = sizeof "0000:000000:000000:00000000000000000000000000000000";
-    }
 
+
+    neighbor* get_app_dest() {
+        //  sockaddr_in *dest_addr
+        // return neighbor_map[dest_addr->sin_addr.s_addr];
+
+        return &(neighbor_map.begin()->second);
+
+
+    }
 
 };

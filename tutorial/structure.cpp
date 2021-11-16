@@ -45,6 +45,7 @@ struct Address {
 
     // unnamed enum used as a set of constants
     int direction = right_dir;
+
 };
 
 void print_me(const Address& addr ) {
@@ -70,6 +71,17 @@ void print_me(const Address& addr ) {
 
 }
 
+struct A {
+    int b;
+
+    // create default contstructor
+    A() = default;
+
+    // prevent copy
+    A & operator = (const A &) = delete;
+    A (const A &) = delete; 
+
+};
 
 
 int main() {
@@ -102,6 +114,17 @@ int main() {
     // error
     cout << add3.v.c << "\n";
     cout << add3.cc << "\n";
+
+    // use default constructor
+    A a1;
+
+    // can't do that - copy deleted
+    // A b {a1};
+    // or 
+    // A b = a1;
+    // or that
+    // A b;
+    // b = a1;
 
 
 }

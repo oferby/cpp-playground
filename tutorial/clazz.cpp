@@ -14,6 +14,10 @@ struct MyStruct {
 class MyClass {
 
     public:
+
+        // delegating constractor
+        MyClass() : MyClass(0) { /* this will call the next constructor */ };
+
         //constructor with members init
         MyClass(ulong s): sz{s}, element {new double[sz]} {
             cout << "creating " << this << "\n";

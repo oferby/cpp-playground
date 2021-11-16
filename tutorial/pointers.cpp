@@ -1,4 +1,10 @@
+#include <cassert>
+#include <cstdio>
+#include <fstream>
 #include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string.h>
 
 using namespace std;
 
@@ -52,9 +58,18 @@ int main() {
     // dereferencing void pointer
     int* dpi = static_cast<int*>(ut);
 
+    unique_ptr<char> c1 = make_unique<char>('A');
+
+    // forbiden:
+    //      char *c2 = c1;
+    //      unique_ptr<char> c2 = c1; 
 
 
-
-
+    
+    shared_ptr<char> c2;
+    *c2 = 'B'; 
+    // allowed
+    shared_ptr<char> c3;
+    c3 = c2;
 
 }

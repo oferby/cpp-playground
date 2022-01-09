@@ -4,3 +4,5 @@ RDMA/udp1/rdma_app
 RDMA/udp1/app
 Socket/smc/client
 Socket/smc/server
+Socket/redirect/socket_impl.o
+Socket/redirect/socket_impl.so

@@ -23,7 +23,12 @@ int main(int argc, char *argv[]) {
     if ( sd == -1 ) {
         fprintf(stderr, "Could not create a socket!\n");
         exit(1);
+    } else if (sd == 898)
+    {
+        perror("found 898");
+        exit(EXIT_FAILURE);
     }
+    
 
     printf("Socket created!\n");
   

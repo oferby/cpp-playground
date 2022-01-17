@@ -65,14 +65,23 @@ int main(int argc, char *argv[]) {
 
         printf("connection accepted!\n");
 
-        int sizeOfData = read(newsocket, &buf, 1024);
+        while (1) {
 
-        printf("got %d characters: %s.\n", sizeOfData, buf);
+            int sizeOfData = read(newsocket, &buf, 1024);
 
-        status = send(newsocket, &buf, sizeOfData, 0);
-        if ( status == -1 ) {
-            fprintf(stderr, "Could not send data from server!\n");
-            exit(1);   
+            // int sizeOfData = recv(newsocket, &buf, 1024, MSG_DONTWAIT);
+
+            // if (sizeOfData < 0)
+            //     continue;
+
+            printf("got %d characters: %s.\n", sizeOfData, buf);
+
+            status = send(newsocket, &buf, sizeOfData, 0);
+            if ( status == -1 ) {
+                fprintf(stderr, "Could not send data from server!\n");
+                exit(1);   
+            }
+
         }
 
         close(newsocket);

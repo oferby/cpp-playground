@@ -6,3 +6,7 @@ Socket/smc/client
 Socket/smc/server
 Socket/redirect/socket_impl.o
 Socket/redirect/socket_impl.so
+LibEvent/supported_events
+Socket/try1/server
+LibEvent/try1_server
+LibEvent/event_features

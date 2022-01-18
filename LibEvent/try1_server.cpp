@@ -191,7 +191,8 @@ void run(void) {
     listener_event = event_new(base, listener, EV_READ|EV_PERSIST, do_accept, (void*)base);
     event_add(listener_event, NULL);
 
-    event_base_dispatch(base);
+    // event_base_dispatch(base);
+    event_base_loop(base, 0);
 }
 
 
